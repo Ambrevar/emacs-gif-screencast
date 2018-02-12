@@ -43,9 +43,9 @@
   :group 'gif-screencast
   :type 'string)
 
-(defcustom gif-screencast-args '("--quality" "25")
+(defcustom gif-screencast-args '("--quality" "25" "--focused")
   "Arguments to `screencast-program'.
-\"scrot\" can use `--focused' to only capture the focused window."
+\"scrot\" can use `--focused' to restrict the capture to the Emacs frame."
   :group 'gif-screencast
   :type 'string)
 
