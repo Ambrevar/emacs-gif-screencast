@@ -21,7 +21,7 @@ scrolling in Eshell), no frame will be captured.  A workdaround consist in
 hammering some no-op key such as ~forward-char~ or ~end-of-line~.
 
 Another neat perk of action-based captures is that it produces /editable/ GIF files:
-programs such as [[https://www.lcdf.org/gifsicle/][gifsicle]] or [[https://www.gimp.org/][The GIMP]] can be used to edit the delays or rearrange frames.
+programs such as [[https://www.lcdf.org/gifsicle/][Gifsicle]] or [[https://www.gimp.org/][The GIMP]] can be used to edit the delays or rearrange frames.
 
 This is particularly useful to fix mistakes in "post-processing", without having
 to record the demo all over again.
@@ -60,6 +60,7 @@ You'll need a screenshot program and a GIF converter.  Defaults are:
 
 - ~gif-screencast-program~: [[http://scrot.sourcearchive.com/][scrot]]
 - ~gif-screencast-convert-program~: [[https://imagemagick.org/script/convert.php][convert]] (from the ImageMagick suite)
+- Optional: ~gif-screencast-optimize-program~: [[https://www.lcdf.org/gifsicle/][Gifsicle]]
 
 You can pass arguments to the screenshot program via ~git-screencast-args~ to
 command it to capture only part of the screen, e.g. you can restrict the capture
