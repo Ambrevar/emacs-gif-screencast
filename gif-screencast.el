@@ -168,7 +168,7 @@ A screenshot is taken before every command runs."
              (substitute-command-keys "\\[gif-screencast-toggle-pause]"))))
 
 (defun gif-screencast-print-status (process event)
-  "Output PROCESS status to minibuffer."
+  "Output PROCESS EVENT to minibuffer."
   (princ (format "Process '%s' %s" process event)))
 
 (defun gif-screencast-optimize (file)
