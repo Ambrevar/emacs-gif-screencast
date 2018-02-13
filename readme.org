@@ -17,7 +17,7 @@ frequency as low as 10 per second.  You could roughly expect 3 to 10 times
 smaller files compared to videos of the same quality.  (Benchmarks are welcome.)
 
 Conversely, should your Emacs demo feature self-animated content (such as output
-scrolling in Eshell), no frame will be captured.  A workdaround consist in
+scrolling in Eshell), no frame will be captured.  A workaround consists in
 hammering some no-op key such as ~forward-char~ or ~end-of-line~.
 
 Another neat perk of action-based captures is that it produces /editable/ GIF files:
@@ -26,7 +26,7 @@ programs such as [[https://www.lcdf.org/gifsicle/][Gifsicle]] or [[https://www.g
 This is particularly useful to fix mistakes in "post-processing", without having
 to record the demo all over again.
 
-Features, pros and cons:
+* Features, pros and cons
 
 - Recordings can be paused and resumed.
 
@@ -38,10 +38,10 @@ Features, pros and cons:
 
 - The result might feel a tad jittery sometimes.
 
-- It won't render self-animated content such as auto-scrolling, also this is
-  workable.
+- It won't render self-animated content such as auto-scrolling, this is
+  workable however.
 
-- It's should be much lighter on memory and CPU than video recording.
+- It should be much lighter on memory and CPU than video recording.
 
 * Implementation
 
@@ -52,7 +52,7 @@ each screenshot, it records the timestamp.
 If paused then resumed, the timestamps are offset by the length of the pause.
 
 When stopped, it compiles the screenshots together into a GIF file using the
-timestamps to set the appropriate delays to each frame.
+timestamps to set the appropriate delays for each frame.
 
 * Setup
 
