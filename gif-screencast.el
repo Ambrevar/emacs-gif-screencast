@@ -64,6 +64,16 @@ various programs run here."
   :group 'gif-screencast
   :type 'string)
 
+(defvar gif-screencast-cropping-program "mogrify"
+  "A program for cropping the screenshots.")
+
+(defcustom gif-screencast-cropping-args '("-verbose")
+  "Arguments to `gif-screencast-cropping-program'.
+`-format' and `-crop' are used as default.
+`gif-screencast-capture-format' shall be ppm for correct cropping."
+  :group 'gif-screencast
+  :type 'string)
+
 (defcustom gif-screencast-want-optimized t
   "If non-nil, run `gif-screencast-optimize' over the resulting GIF."
   :group 'gif-screencast
@@ -102,6 +112,16 @@ various programs run here."
   :group 'gif-screencast
   :type 'directory)
 
+(defcustom gif-screencast-capture-format "png"
+  "Image format to store the captured images."
+  :group 'gif-screencast
+  :type 'string)
+
+(defcustom gif-screencast-title-bar-pixel-height 22
+  "Height of title bar."
+  :group 'gif-screencast
+  :type 'integer)
+
 (defvar gif-screencast--frames nil
   "A frame is a plist in the form '(:time :file :offset).")
 (defvar gif-screencast--offset 0
@@ -121,13 +141,21 @@ various programs run here."
   :init-value nil
   :keymap gif-screencast-mode-map)
 
+
 (defun gif-screencast-capture ()
   "Save result of `screencast-program' to `screencast-output-dir'."
   (let* ((time (current-time))
          (file (expand-file-name
-                (format-time-string "screen-%F-%T-%3N.png" time)
+                (concat (format-time-string "screen-%F-%T-%3N" time)
+                        "."
+                        gif-screencast-capture-format)
                 gif-screencast-screenshot-directory)))
-    (apply 'start-process gif-screencast-program (get-buffer-create gif-screencast-log) gif-screencast-program file gif-screencast-args)
+    (apply 'start-process
+           gif-screencast-program
+           (get-buffer-create gif-screencast-log)
+           gif-screencast-program
+           gif-screencast-args
+           (list file))
     (push (cons (time-subtract time gif-screencast--offset) file) gif-screencast--frames)))
 
 ;;;###autoload
@@ -189,6 +217,37 @@ A screenshot is taken before every command runs."
   (remove-hook 'pre-command-hook 'gif-screencast-capture)
   (gif-screencast-mode 0)
   (setq gif-screencast--frames (nreverse gif-screencast--frames))
+  (if (memq window-system '(mac ns))
+      (gif-screencast--cropping)
+    (gif-screencast--generate-gif nil nil)))
+
+(defun gif-screencast--cropping ()
+  "Crop the captured images to the active region of selected frame."
+  (message "Cropping captured images with %s..."
+           gif-screencast-cropping-program)
+  (let ((process-connection-type nil)
+        (p (apply 'start-process
+                  "cropping"
+                  (get-buffer-create gif-screencast-log)
+                  gif-screencast-cropping-program
+                  (append '("-format")
+                          (list (format "%s" gif-screencast-capture-format))
+                          '("-crop")
+                          (list
+                           (format "%dx%d+%d+%d"
+                                   (frame-pixel-width)
+                                   (+ (frame-pixel-height)
+                                      gif-screencast-title-bar-pixel-height)
+                                   (car (frame-position))
+                                   (cdr (frame-position))))
+                          gif-screencast-cropping-args
+                          (mapcar 'cdr gif-screencast--frames)))))
+    (set-process-sentinel p 'gif-screencast--generate-gif)))
+
+(defun gif-screencast--generate-gif (process event)
+  (when process
+    (princ (format "Process '%s' %s" process event)))
+
   (let (delays
         (index 0)
         (frames gif-screencast--frames))
@@ -201,6 +260,7 @@ A screenshot is taken before every command runs."
             delays)
       (setq index (1+ index)
             frames (cdr frames)))
+
     (let (p
           (output (expand-file-name
                    (format-time-string "output-%F-%T.gif" (current-time))
