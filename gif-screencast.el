@@ -154,8 +154,9 @@ various programs run here."
            gif-screencast-program
            (get-buffer-create gif-screencast-log)
            gif-screencast-program
-           gif-screencast-args
-           (list file))
+           (append
+            gif-screencast-args
+            (list file)))
     (push (cons (time-subtract time gif-screencast--offset) file) gif-screencast--frames)))
 
 ;;;###autoload
