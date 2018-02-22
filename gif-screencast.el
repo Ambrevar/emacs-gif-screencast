@@ -290,7 +290,7 @@ A screenshot is taken before every command runs."
         (set-process-sentinel p 'gif-screencast-print-status))
       (if gif-screencast-autoremove-screenshots
           (set-process-sentinel p
-                                (lambda (process _event)
+                                (lambda (process event)
                                   (if (and (eq (process-status process) 'exit)
                                            (= (process-exit-status process) 0))
                                       (dolist (f gif-screencast--frames)
