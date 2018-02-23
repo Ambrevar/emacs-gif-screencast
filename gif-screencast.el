@@ -223,6 +223,15 @@ A screenshot is taken before every command runs."
       (gif-screencast--cropping)
     (gif-screencast--generate-gif nil nil)))
 
+(defun gif-screencast--cropping-region ()
+  "Cropping region on the captured image."
+  (let ((x (car (frame-position)))
+        (y (cdr (frame-position)))
+        (width (frame-pixel-width))
+        (height (+ (frame-pixel-height)
+                   gif-screencast-title-bar-pixel-height)))
+    (format "%dx%d+%d+%d" width height x y)))
+
 (defun gif-screencast--cropping ()
   "Crop the captured images to the active region of selected frame."
   (message "Cropping captured images with %s..."
@@ -235,13 +244,7 @@ A screenshot is taken before every command runs."
                   (append '("-format")
                           (list (format "%s" gif-screencast-capture-format))
                           '("-crop")
-                          (list
-                           (format "%dx%d+%d+%d"
-                                   (frame-pixel-width)
-                                   (+ (frame-pixel-height)
-                                      gif-screencast-title-bar-pixel-height)
-                                   (car (frame-position))
-                                   (cdr (frame-position))))
+                          (list (gif-screencast--cropping-region))
                           gif-screencast-cropping-args
                           (mapcar 'cdr gif-screencast--frames)))))
     (set-process-sentinel p 'gif-screencast--generate-gif)))
@@ -290,6 +293,7 @@ A screenshot is taken before every command runs."
                                         (setq p (gif-screencast-optimize output))
                                       (gif-screencast-print-status process event))))
         (set-process-sentinel p 'gif-screencast-print-status))
+
       (if gif-screencast-autoremove-screenshots
           (set-process-sentinel p
                                 (lambda (process event)
