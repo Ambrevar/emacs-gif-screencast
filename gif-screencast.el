@@ -119,6 +119,7 @@ various programs run here."
 (define-minor-mode gif-screencast-mode
   "gif-screencast bindings"
   :init-value nil
+  :global t
   :keymap gif-screencast-mode-map)
 
 (defvar gif-screencast--counter 0
