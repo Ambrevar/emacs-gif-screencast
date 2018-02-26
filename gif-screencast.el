@@ -132,47 +132,48 @@ various programs run here."
 
 (defun gif-screencast--finish ()
   "Finish screen capturing."
-  (if (and (not gif-screencast-mode) (= gif-screencast--counter 0))
-      (let (delays
-            (index 0)
-            (frames gif-screencast--frames))
-        (while (cdr frames)
-          (push (list "(" "-clone" (number-to-string index) "-set" "delay"
-                      ;; Converters delays are expressed in centiseconds.
-                      (format "%d" (* 100 (float-time
-                                           (time-subtract (car (cadr frames)) (caar frames)))))
-                      ")" "-swap" (number-to-string index) "+delete")
-                delays)
-          (setq index (1+ index)
-                frames (cdr frames)))
-        (message "Compiling GIF with %s..." gif-screencast-convert-program)
-        (let ((output (expand-file-name
-                       (format-time-string "output-%F-%T.gif" (current-time))
-                       (or (and  (file-writable-p gif-screencast-output-directory)
-                                 gif-screencast-output-directory)
-                           (read-directory-name "Save output to directory: ")))))
-          (setq p (apply 'start-process
-                         gif-screencast-convert-program
-                         (get-buffer-create gif-screencast-log)
-                         gif-screencast-convert-program
-                         (append
-                          gif-screencast-convert-args
-                          (mapcar 'cdr gif-screencast--frames)
-                          ;; Delays must come after the file arguments.
-                          (apply 'nconc delays)
-                          (list output))))
-          (if gif-screencast-want-optimized
-              (set-process-sentinel p (lambda (process event)
-                                        (if (and (eq (process-status process) 'exit)
-                                                 (= (process-exit-status process) 0))
-                                            (setq p (gif-screencast-optimize output))
-                                          (gif-screencast-print-status process event))))
-            (set-process-sentinel p 'gif-screencast-print-status))
-          (when (and gif-screencast-autoremove-screenshots
-                     (eq (process-exit-status p) 'exit)
-                     (= (process-exit-status p) 0))
-            (dolist (f gif-screencast--frames)
-              (delete-file (cdr f))))))))
+  (when (and (not gif-screencast-mode) (= gif-screencast--counter 0))
+    (let (delays
+          (index 0)
+          (frames gif-screencast--frames))
+      (while (cdr frames)
+        (push (list "(" "-clone" (number-to-string index) "-set" "delay"
+                    ;; Converters delays are expressed in centiseconds.
+                    (format "%d" (* 100 (float-time
+                                         (time-subtract (car (cadr frames)) (caar frames)))))
+                    ")" "-swap" (number-to-string index) "+delete")
+              delays)
+        (setq index (1+ index)
+              frames (cdr frames)))
+      (message "Compiling GIF with %s..." gif-screencast-convert-program)
+      (let ((output (expand-file-name
+                     (format-time-string "output-%F-%T.gif" (current-time))
+                     (or (and (file-writable-p gif-screencast-output-directory)
+                              gif-screencast-output-directory)
+                         (read-directory-name "Save output to directory: "))))
+            p)
+        (setq p (apply 'start-process
+                       gif-screencast-convert-program
+                       (get-buffer-create gif-screencast-log)
+                       gif-screencast-convert-program
+                       (append
+                        gif-screencast-convert-args
+                        (mapcar 'cdr gif-screencast--frames)
+                        ;; Delays must come after the file arguments.
+                        (apply 'nconc delays)
+                        (list output))))
+        (if gif-screencast-want-optimized
+            (set-process-sentinel p (lambda (process event)
+                                      (if (and (eq (process-status process) 'exit)
+                                               (= (process-exit-status process) 0))
+                                          (setq p (gif-screencast-optimize output))
+                                        (gif-screencast-print-status process event))))
+          (set-process-sentinel p 'gif-screencast-print-status))
+        (when (and gif-screencast-autoremove-screenshots
+                   (eq (process-exit-status p) 'exit)
+                   (= (process-exit-status p) 0))
+          (dolist (f gif-screencast--frames)
+            (delete-file (cdr f))))))))
 
 (defun gif-screencast-capture ()
   "Save result of `screencast-program' to `screencast-output-dir'."
