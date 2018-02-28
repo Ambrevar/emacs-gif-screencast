@@ -38,9 +38,8 @@
   "Predefined configurations for `gif-screencast'."
   :group 'multimedia)
 
-(defcustom gif-screencast-program "scrot"
+(defcustom gif-screencast-program (if (eq 'darwin system-type) "screencapture" "scrot")
   "A program for taking screenshots.
-\"screencapture\" command is available for macOS user.
 See also `gif-screencast-capture-format'."
   :group 'gif-screencast
   :type 'string)
@@ -208,7 +207,7 @@ If you are a macOS user, \"ppm\" should be specified."
           (delete-file (cdr f)))))))
 
 (defun gif-screencast--cropping-region ()
-  "Cropping region on the captured image."
+  "Return the cropping region of the captured image."
   (let ((x (car (frame-position)))
         (y (cdr (frame-position)))
         (width (frame-pixel-width))
