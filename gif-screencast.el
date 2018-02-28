@@ -5,7 +5,7 @@
 ;; Author: Pierre Neidhardt <ambrevar@gmail.com>
 ;; URL: https://github.com/ambrevar/emacs-gif-screencast
 ;; Version: 1.0
-;; Package-Requires: ((emacs "24.4") (s "1.12"))
+;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: multimedia, screencast
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,6 @@
 ;; TODO: Capture on scrolling (e.g. program outputting to Eshell buffer).
 ;; TODO: Add support for on-screen keystroke display, e.g. screenkey.
 
-(require 's)
 (defgroup gif-screencast nil
   "Predefined configurations for `gif-screencast'."
   :group 'multimedia)
