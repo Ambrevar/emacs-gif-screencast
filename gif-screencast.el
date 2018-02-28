@@ -199,11 +199,14 @@ If you are a macOS user, \"ppm\" should be specified."
                                         (setq p (gif-screencast-optimize output))
                                       (gif-screencast-print-status process event))))
         (set-process-sentinel p 'gif-screencast-print-status))
-      (when (and gif-screencast-autoremove-screenshots
-                 (eq (process-exit-status p) 'exit)
-                 (= (process-exit-status p) 0))
-        (dolist (f gif-screencast--frames)
-          (delete-file (cdr f)))))))
+      (if gif-screencast-autoremove-screenshots
+          (set-process-sentinel p (lambda (process event)
+                                    (if (and (eq (process-status process) 'exit)
+                                             (= (process-exit-status process) 0))
+                                        (dolist (f gif-screencast--frames)
+                                          (delete-file (cdr f))))
+                                    (gif-screencast-print-status process event)))
+        (set-process-sentinel p 'gif-screencast-print-status)))))
 
 (defun gif-screencast--cropping-region ()
   "Return the cropping region of the captured image."
