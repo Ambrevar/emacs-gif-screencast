@@ -133,11 +133,8 @@ If you are a macOS user, \"ppm\" should be specified."
   "Timestamp when user hit pause.")
 
 (defvar gif-screencast-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "<f8>") 'gif-screencast-toggle-pause)
-    (define-key map (kbd "<f9>") 'gif-screencast-stop)
-    map)
-  "Keymap of command `flycheck-mode'.")
+  (make-sparse-keymap)
+  "Keymap of `gif-screencast-mode'.")
 
 (define-minor-mode gif-screencast-mode
   "gif-screencast bindings"

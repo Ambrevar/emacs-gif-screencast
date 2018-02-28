@@ -66,6 +66,14 @@ You can pass arguments to the screenshot program via ~git-screencast-args~ to
 command it to capture only part of the screen, e.g. you can restrict the capture
 to the Emacs frame with =scrot='s argument =--focused=
 
+You might want to set some bindings for convenience.
+
+#+BEGIN_SRC emacs-lisp
+(with-eval-after-load 'gif-screencast
+  (define-key gif-screencast-mode-map (kbd "<f8>") 'gif-screencast-toggle-pause)
+  (define-key gif-screencast-mode-map (kbd "<f9>") 'gif-screencast-stop))
+#+END_SRC
+
 Start recording with ~gif-screencast~!
 
 ** macOS
@@ -73,7 +81,7 @@ Start recording with ~gif-screencast~!
 macOS requires some additional settings:
 
 #+BEGIN_SRC emacs-lisp
-(with-eval-after-load "gif-screencast"
+(with-eval-after-load 'gif-screencast
   (setq gif-screencast-args '("-x")) ;; To shut up the shutter sound of `screencapture' (see `gif-screencast-command').
   (setq gif-screencast-cropping-program "mogrify") ;; Optional: Used to crop the capture to the Emacs frame.
   (setq gif-screencast-capture-format "ppm") ;; Optional: Required to crop captured images.
