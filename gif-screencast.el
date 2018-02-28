@@ -39,8 +39,9 @@
   "Predefined configurations for `gif-screencast'."
   :group 'multimedia)
 
-(defcustom gif-screencast-program "scrot"
-  "A program for taking screenshots."
+(defcustom gif-screencast-program (if (eq 'darwin system-type) "screencapture" "scrot")
+  "A program for taking screenshots.
+See also `gif-screencast-capture-format'."
   :group 'gif-screencast
   :type 'string)
 
@@ -66,14 +67,15 @@ various programs run here."
   :type 'string)
 
 (defvar gif-screencast-cropping-program "mogrify"
-  "A program for cropping the screenshots.")
+  "A program for cropping the screenshots.
+If `gif-screencast-cropping-program' is not found, cropping will be skipped.")
 
-(defcustom gif-screencast-cropping-args '("-verbose")
+(defcustom gif-screencast-cropping-args nil
   "Arguments to `gif-screencast-cropping-program'.
-`-format' and `-crop' are used as default.
-`gif-screencast-capture-format' shall be ppm for correct cropping."
+Don't specify \"-format\" and \"-crop\" since these commands are used
+as the default arguments."
   :group 'gif-screencast
-  :type 'string)
+  :type '(repeat string))
 
 (defcustom gif-screencast-want-optimized t
   "If non-nil, run `gif-screencast-optimize' over the resulting GIF."
@@ -114,12 +116,13 @@ various programs run here."
   :type 'directory)
 
 (defcustom gif-screencast-capture-format "png"
-  "Image format to store the captured images."
+  "Image format to store the captured images.
+If you are a macOS user, \"ppm\" should be specified."
   :group 'gif-screencast
   :type 'string)
 
 (defcustom gif-screencast-title-bar-pixel-height 22
-  "Height of title bar."
+  "Height of title bar for cropping screenshots."
   :group 'gif-screencast
   :type 'integer)
 
@@ -131,17 +134,107 @@ various programs run here."
   "Timestamp when user hit pause.")
 
 (defvar gif-screencast-mode-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "<f8>") 'gif-screencast-toggle-pause)
-    (define-key map (kbd "<f9>") 'gif-screencast-stop)
-    map)
-  "Keymap of command `flycheck-mode'.")
+  (make-sparse-keymap)
+  "Keymap of `gif-screencast-mode'.")
 
 (define-minor-mode gif-screencast-mode
   "gif-screencast bindings"
   :init-value nil
+  :global t
+  :require 'gif-screencast
   :keymap gif-screencast-mode-map)
 
+(defvar gif-screencast--counter 0
+  "Number of running screenshots.")
+
+(defun gif-screencast-capture-sentinel (_proc _status)
+  "Sentinel for screen capturing."
+  (setq gif-screencast--counter (- gif-screencast--counter 1))
+  (gif-screencast--finish))
+
+(defun gif-screencast--finish ()
+  "Finish screen capturing."
+  (when (and (not gif-screencast-mode) (= gif-screencast--counter 0))
+    (if (memq window-system '(mac ns))
+        (gif-screencast--crop)
+      (gif-screencast--generate-gif nil nil))))
+
+(defun gif-screencast--generate-gif (process event)
+  "Generate GIF file."
+  (when process
+    (gif-screencast-print-status process event))
+  (let (delays
+        (index 0)
+        (frames gif-screencast--frames))
+    (while (cdr frames)
+      (push (list "(" "-clone" (number-to-string index) "-set" "delay"
+                  ;; Converters delays are expressed in centiseconds.
+                  (format "%d" (* 100 (float-time
+                                       (time-subtract (car (cadr frames)) (caar frames)))))
+                  ")" "-swap" (number-to-string index) "+delete")
+            delays)
+      (setq index (1+ index)
+            frames (cdr frames)))
+    (message "Compiling GIF with %s..." gif-screencast-convert-program)
+    (let ((output (expand-file-name
+                   (format-time-string "output-%F-%T.gif" (current-time))
+                   (or (and (file-writable-p gif-screencast-output-directory)
+                            gif-screencast-output-directory)
+                       (read-directory-name "Save output to directory: "))))
+          p)
+      (setq p (apply 'start-process
+                     gif-screencast-convert-program
+                     (get-buffer-create gif-screencast-log)
+                     gif-screencast-convert-program
+                     (append
+                      gif-screencast-convert-args
+                      (mapcar 'cdr gif-screencast--frames)
+                      ;; Delays must come after the file arguments.
+                      (apply 'nconc delays)
+                      (list output))))
+      (if gif-screencast-want-optimized
+          (set-process-sentinel p (lambda (process event)
+                                    (if (and (eq (process-status process) 'exit)
+                                             (= (process-exit-status process) 0))
+                                        (setq p (gif-screencast-optimize output))
+                                      (gif-screencast-print-status process event))))
+        (set-process-sentinel p 'gif-screencast-print-status))
+      (when (and gif-screencast-autoremove-screenshots
+                 (eq (process-exit-status p) 'exit)
+                 (= (process-exit-status p) 0))
+        (dolist (f gif-screencast--frames)
+          (delete-file (cdr f)))))))
+
+(defun gif-screencast--cropping-region ()
+  "Return the cropping region of the captured image."
+  (let ((x (car (frame-position)))
+        (y (cdr (frame-position)))
+        (width (frame-pixel-width))
+        (height (+ (frame-pixel-height)
+                   gif-screencast-title-bar-pixel-height)))
+    (format "%dx%d+%d+%d" width height x y)))
+
+(defun gif-screencast--crop ()
+  "Crop the captured images to the active region of selected frame."
+  (when (and (not gif-screencast-mode) (= gif-screencast--counter 0))
+    (if (executable-find gif-screencast-cropping-program)
+        (progn
+          (message "Cropping captured images with %s..."
+                   gif-screencast-cropping-program)
+          (let ((process-connection-type nil)
+                (p (apply 'start-process
+                          "cropping"
+                          (get-buffer-create gif-screencast-log)
+                          gif-screencast-cropping-program
+                          (append '("-format")
+                                  (list (format "%s" gif-screencast-capture-format))
+                                  '("-crop")
+                                  (list (gif-screencast--cropping-region))
+                                  gif-screencast-cropping-args
+                                  (mapcar 'cdr gif-screencast--frames)))))
+            (set-process-sentinel p 'gif-screencast--generate-gif)))
+      (message "Cropping program '%s' not found (See `gif-screencast-cropping-program')" gif-screencast-cropping-program)
+      (gif-screencast--generate-gif nil nil))))
 
 (defun gif-screencast-capture ()
   "Save result of `screencast-program' to `screencast-output-dir'."
@@ -151,13 +244,14 @@ various programs run here."
                         "."
                         gif-screencast-capture-format)
                 gif-screencast-screenshot-directory)))
-    (apply 'start-process
-           gif-screencast-program
-           (get-buffer-create gif-screencast-log)
-           gif-screencast-program
-           (append
-            gif-screencast-args
-            (list file)))
+    (setq gif-screencast--counter (+ gif-screencast--counter 1))
+    (let ((p (apply 'start-process gif-screencast-program
+                    (get-buffer-create gif-screencast-log)
+                    gif-screencast-program
+                    (append
+                     gif-screencast-args
+                     (list file)))))
+      (set-process-sentinel p 'gif-screencast-capture-sentinel))
     (push (cons (time-subtract time gif-screencast--offset) file) gif-screencast--frames)))
 
 ;;;###autoload
@@ -165,20 +259,23 @@ various programs run here."
   "Start recording the GIF.
 A screenshot is taken before every command runs."
   (interactive)
-  (if (not (executable-find gif-screencast-program))
-      (message "Screenshot program '%s' not found (See `gif-screencast-program')" gif-screencast-program)
-    (dolist (d (list gif-screencast-output-directory gif-screencast-screenshot-directory))
-      (unless (file-exists-p d)
-        (make-directory d 'parents)))
-    (setq gif-screencast--frames '())
-    (gif-screencast-mode 1)
-    (dolist (i (number-sequence gif-screencast-countdown 1 -1))
-      (message "Start recording GIF in %s..." i)
-      (sleep-for 0.7))
-    (message "Go! (Press %s to stop, %s to resume)"
-             (substitute-command-keys "\\[gif-screencast-stop]")
-             (substitute-command-keys "\\[gif-screencast-toggle-pause]"))
-    (add-hook 'pre-command-hook 'gif-screencast-capture)))
+  (if gif-screencast-mode
+      (message "gif-screencast already running")
+    (if (not (executable-find gif-screencast-program))
+        (message "Screenshot program '%s' not found (See `gif-screencast-program')" gif-screencast-program)
+      (dolist (d (list gif-screencast-output-directory gif-screencast-screenshot-directory))
+        (unless (file-exists-p d)
+          (make-directory d 'parents)))
+      (setq gif-screencast--frames '())
+      (setq gif-screencast--counter 0)
+      (gif-screencast-mode 1)
+      (dolist (i (number-sequence gif-screencast-countdown 1 -1))
+        (message "Start recording GIF in %s..." i)
+        (sleep-for 0.7))
+      (message "Go! (Press %s to stop, %s to resume)"
+               (substitute-command-keys "\\[gif-screencast-stop]")
+               (substitute-command-keys "\\[gif-screencast-toggle-pause]"))
+      (add-hook 'pre-command-hook 'gif-screencast-capture))))
 
 (defun gif-screencast-toggle-pause ()
   "Toggle recording of the GIF."
@@ -199,7 +296,12 @@ A screenshot is taken before every command runs."
 
 (defun gif-screencast-print-status (process event)
   "Output PROCESS EVENT to minibuffer."
-  (princ (format "Process '%s' %s" process (s-chomp event))))
+  (princ (format "Process '%s' %s"
+                 process
+                 (progn
+                   (while (string-match "\n+\\|\r+" event)
+                     (setq event (replace-match "" t t event)))
+                   event))))
 
 (defun gif-screencast-optimize (file)
   "Optimize GIF FILE asynchronously."
@@ -219,90 +321,7 @@ A screenshot is taken before every command runs."
   (remove-hook 'pre-command-hook 'gif-screencast-capture)
   (gif-screencast-mode 0)
   (setq gif-screencast--frames (nreverse gif-screencast--frames))
-  (if (memq window-system '(mac ns))
-      (gif-screencast--cropping)
-    (gif-screencast--generate-gif nil nil)))
-
-(defun gif-screencast--cropping-region ()
-  "Cropping region on the captured image."
-  (let ((x (car (frame-position)))
-        (y (cdr (frame-position)))
-        (width (frame-pixel-width))
-        (height (+ (frame-pixel-height)
-                   gif-screencast-title-bar-pixel-height)))
-    (format "%dx%d+%d+%d" width height x y)))
-
-(defun gif-screencast--cropping ()
-  "Crop the captured images to the active region of selected frame."
-  (message "Cropping captured images with %s..."
-           gif-screencast-cropping-program)
-  (let ((process-connection-type nil)
-        (p (apply 'start-process
-                  "cropping"
-                  (get-buffer-create gif-screencast-log)
-                  gif-screencast-cropping-program
-                  (append '("-format")
-                          (list (format "%s" gif-screencast-capture-format))
-                          '("-crop")
-                          (list (gif-screencast--cropping-region))
-                          gif-screencast-cropping-args
-                          (mapcar 'cdr gif-screencast--frames)))))
-    (set-process-sentinel p 'gif-screencast--generate-gif)))
-
-(defun gif-screencast--generate-gif (process event)
-  (when process
-    (gif-screencast-print-status process event))
-
-  (let (delays
-        (index 0)
-        (frames gif-screencast--frames))
-    (while (cdr frames)
-      (push (list "(" "-clone" (number-to-string index) "-set" "delay"
-                  ;; Converters delays are expressed in centiseconds.
-                  (format "%d" (* 100 (float-time
-                                       (time-subtract (car (cadr frames)) (caar frames)))))
-                  ")" "-swap" (number-to-string index) "+delete")
-            delays)
-      (setq index (1+ index)
-            frames (cdr frames)))
-
-    (let (p
-          (output (expand-file-name
-                   (format-time-string "output-%F-%T.gif" (current-time))
-                   (or (and  (file-writable-p gif-screencast-output-directory)
-                             gif-screencast-output-directory)
-                       (read-directory-name "Save output to directory: ")))))
-      (message "Compiling GIF with %s..." gif-screencast-convert-program)
-      ;; Need to wait for last screenshot to finish.
-      ;; TODO: `sleep-for' is a kludge.  Can Emacs do better?
-      (sleep-for 1)
-      (setq p (apply 'start-process
-                     gif-screencast-convert-program
-                     (get-buffer-create gif-screencast-log)
-                     gif-screencast-convert-program
-                     (append
-                      gif-screencast-convert-args
-                      (mapcar 'cdr gif-screencast--frames)
-                      ;; Delays must come after the file arguments.
-                      (apply 'nconc delays)
-                      (list output))))
-      (if gif-screencast-want-optimized
-          (set-process-sentinel p (lambda (process event)
-                                    (if (and (eq (process-status process) 'exit)
-                                             (= (process-exit-status process) 0))
-                                        (setq p (gif-screencast-optimize output))
-                                      (gif-screencast-print-status process event))))
-        (set-process-sentinel p 'gif-screencast-print-status))
-
-      (if gif-screencast-autoremove-screenshots
-          (set-process-sentinel p
-                                (lambda (process event)
-                                  (if (and (eq (process-status process) 'exit)
-                                           (= (process-exit-status process) 0))
-                                      (dolist (f gif-screencast--frames)
-                                        (delete-file (cdr f))))
-                                  (gif-screencast-print-status process event)))
-        (set-process-sentinel p 'gif-screencast-print-status)))))
+  (gif-screencast--finish))
 
 (provide 'gif-screencast)
 
