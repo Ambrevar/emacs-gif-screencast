@@ -143,6 +143,7 @@ If you are a macOS user, \"ppm\" should be specified."
   "gif-screencast bindings"
   :init-value nil
   :global t
+  :require 'gif-screencast
   :keymap gif-screencast-mode-map)
 
 (defvar gif-screencast--counter 0
