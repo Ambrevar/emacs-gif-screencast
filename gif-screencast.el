@@ -5,7 +5,7 @@
 ;; Author: Pierre Neidhardt <ambrevar@gmail.com>
 ;; URL: https://github.com/ambrevar/emacs-gif-screencast
 ;; Version: 1.0
-;; Package-Requires: ((emacs "24.4") (s "1.12"))
+;; Package-Requires: ((emacs "24.4"))
 ;; Keywords: multimedia, screencast
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -34,15 +34,14 @@
 ;; TODO: Capture on scrolling (e.g. program outputting to Eshell buffer).
 ;; TODO: Add support for on-screen keystroke display, e.g. screenkey.
 
-(require 's)
 (defgroup gif-screencast nil
   "Predefined configurations for `gif-screencast'."
   :group 'multimedia)
 
 (defcustom gif-screencast-program "scrot"
   "A program for taking screenshots.
-\"screencapture\" command is available for OSX user.
-see also `gif-screencast-capture-format'."
+\"screencapture\" command is available for macOS user.
+See also `gif-screencast-capture-format'."
   :group 'gif-screencast
   :type 'string)
 
@@ -68,14 +67,15 @@ various programs run here."
   :type 'string)
 
 (defvar gif-screencast-cropping-program "mogrify"
-  "A program for cropping the screenshots.")
+  "A program for cropping the screenshots.
+If `gif-screencast-cropping-program' is not found, cropping will be skipped.")
 
-(defcustom gif-screencast-cropping-args '("-verbose")
+(defcustom gif-screencast-cropping-args nil
   "Arguments to `gif-screencast-cropping-program'.
 Don't specify \"-format\" and \"-crop\" since these commands are used
 as the default arguments."
   :group 'gif-screencast
-  :type 'string)
+  :type '(repeat string))
 
 (defcustom gif-screencast-want-optimized t
   "If non-nil, run `gif-screencast-optimize' over the resulting GIF."
@@ -117,7 +117,7 @@ as the default arguments."
 
 (defcustom gif-screencast-capture-format "png"
   "Image format to store the captured images.
-If you are an OSX user, \"ppm\" should be specified."
+If you are a macOS user, \"ppm\" should be specified."
   :group 'gif-screencast
   :type 'string)
 
@@ -158,14 +158,13 @@ If you are an OSX user, \"ppm\" should be specified."
   "Finish screen capturing."
   (when (and (not gif-screencast-mode) (= gif-screencast--counter 0))
     (if (memq window-system '(mac ns))
-        (gif-screencast--cropping)
+        (gif-screencast--crop)
       (gif-screencast--generate-gif nil nil))))
 
 (defun gif-screencast--generate-gif (process event)
   "Generate GIF file."
   (when process
     (gif-screencast-print-status process event))
-
   (let (delays
         (index 0)
         (frames gif-screencast--frames))
@@ -217,23 +216,27 @@ If you are an OSX user, \"ppm\" should be specified."
                    gif-screencast-title-bar-pixel-height)))
     (format "%dx%d+%d+%d" width height x y)))
 
-(defun gif-screencast--cropping ()
+(defun gif-screencast--crop ()
   "Crop the captured images to the active region of selected frame."
   (when (and (not gif-screencast-mode) (= gif-screencast--counter 0))
-    (message "Cropping captured images with %s..."
-             gif-screencast-cropping-program)
-    (let ((process-connection-type nil)
-          (p (apply 'start-process
-                    "cropping"
-                    (get-buffer-create gif-screencast-log)
-                    gif-screencast-cropping-program
-                    (append '("-format")
-                            (list (format "%s" gif-screencast-capture-format))
-                            '("-crop")
-                            (list (gif-screencast--cropping-region))
-                            gif-screencast-cropping-args
-                            (mapcar 'cdr gif-screencast--frames)))))
-      (set-process-sentinel p 'gif-screencast--generate-gif))))
+    (if (executable-find gif-screencast-cropping-program)
+        (progn
+          (message "Cropping captured images with %s..."
+                   gif-screencast-cropping-program)
+          (let ((process-connection-type nil)
+                (p (apply 'start-process
+                          "cropping"
+                          (get-buffer-create gif-screencast-log)
+                          gif-screencast-cropping-program
+                          (append '("-format")
+                                  (list (format "%s" gif-screencast-capture-format))
+                                  '("-crop")
+                                  (list (gif-screencast--cropping-region))
+                                  gif-screencast-cropping-args
+                                  (mapcar 'cdr gif-screencast--frames)))))
+            (set-process-sentinel p 'gif-screencast--generate-gif)))
+      (message "Cropping program '%s' not found (See `gif-screencast-cropping-program')" gif-screencast-cropping-program)
+      (gif-screencast--generate-gif nil nil))))
 
 (defun gif-screencast-capture ()
   "Save result of `screencast-program' to `screencast-output-dir'."
@@ -295,7 +298,12 @@ A screenshot is taken before every command runs."
 
 (defun gif-screencast-print-status (process event)
   "Output PROCESS EVENT to minibuffer."
-  (princ (format "Process '%s' %s" process (s-chomp event))))
+  (princ (format "Process '%s' %s"
+                 process
+                 (progn
+                   (while (string-match "\n+\\|\r+" event)
+                     (setq event (replace-match "" t t event)))
+                   event))))
 
 (defun gif-screencast-optimize (file)
   "Optimize GIF FILE asynchronously."

@@ -67,3 +67,19 @@ command it to capture only part of the screen, e.g. you can restrict the capture
 to the Emacs frame with =scrot='s argument =--focused=
 
 Start recording with ~gif-screencast~!
+
+** for macOS user
+
+Even if you use Emacs in macOS, ~gif-screencast~ is still available when you apply the following setting.
+
+#+BEGIN_SRC emacs-lisp
+(with-eval-after-load "gif-screencast"
+  (setq gif-screencast-program "screencapture") ;; default command in macOS
+  (setq gif-screencast-args '("-x")) ;; to shut-up shutter sounds by screencapture
+  (setq gif-screencast-capture-format "ppm")) ;; mandatory setting to crop the cpatured images
+#+END_SRC
+
+Additionally, you will need a cropping program:
+- ~gif-screencast-cropping-program~: [[https://imagemagick.org/script/mogrify.php][mogrify]] (from the ImageMagick suite)
+
+If [[https://imagemagick.org/script/mogrify.php][mogrify]] is not installed in your system, captured images by ~gif-screencast-program~ are not cropped.
