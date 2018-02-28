@@ -76,7 +76,7 @@ Even if you use Emacs in macOS, ~gif-screencast~ is still available when you app
 (with-eval-after-load "gif-screencast"
   (setq gif-screencast-program "screencapture") ;; default command in macOS
   (setq gif-screencast-args '("-x")) ;; to shut-up shutter sounds by screencapture
-  (setq gif-screencast-capture-format "ppm")) ;; mandatory setting to crop the cpatured images
+  (setq gif-screencast-capture-format "ppm")) ;; mandatory setting to crop the captured images
 #+END_SRC
 
 Additionally, you will need a cropping program:
