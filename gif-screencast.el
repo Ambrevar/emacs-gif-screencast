@@ -191,18 +191,17 @@ If you are a macOS user, \"ppm\" should be specified."
                       ;; Delays must come after the file arguments.
                       (apply 'nconc delays)
                       (list output))))
-      (if gif-screencast-want-optimized
-          (set-process-sentinel p (lambda (process event)
-                                    (if (and (eq (process-status process) 'exit)
-                                             (= (process-exit-status process) 0))
-                                        (setq p (gif-screencast-optimize output))
-                                      (gif-screencast-print-status process event))))
-        (set-process-sentinel p 'gif-screencast-print-status))
-      (when (and gif-screencast-autoremove-screenshots
-                 (eq (process-exit-status p) 'exit)
-                 (= (process-exit-status p) 0))
-        (dolist (f gif-screencast--frames)
-          (delete-file (cdr f)))))))
+      (set-process-sentinel p (lambda (process event)
+                                (gif-screencast-print-status process event)
+                                (when (and gif-screencast-want-optimized
+                                           (eq (process-status process) 'exit)
+                                           (= (process-exit-status process) 0))
+                                  (gif-screencast-optimize output))
+                                (when (and gif-screencast-autoremove-screenshots
+                                           (eq (process-status process) 'exit)
+                                           (= (process-exit-status process) 0))
+                                  (dolist (f gif-screencast--frames)
+                                    (delete-file (cdr f)))))))))
 
 (defun gif-screencast--cropping-region ()
   "Return the cropping region of the captured image."
