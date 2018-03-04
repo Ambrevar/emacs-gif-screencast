@@ -120,7 +120,7 @@ If you are a macOS user, \"ppm\" should be specified."
   :group 'gif-screencast
   :type 'string)
 
-(defcustom gif-screencast-title-bar-pixel-height 22
+(defcustom gif-screencast-title-bar-pixel-height (cdr (cdr (assoc 'title-bar-size (frame-geometry))))
   "Height of title bar for cropping screenshots."
   :group 'gif-screencast
   :type 'integer)
@@ -207,9 +207,10 @@ If you are a macOS user, \"ppm\" should be specified."
   "Return the cropping region of the captured image."
   (let ((x (car (frame-position)))
         (y (cdr (frame-position)))
-        (width (frame-pixel-width))
+        (width (car (cdr (assoc 'outer-size (frame-geometry)))))
         (height (+ (frame-pixel-height)
-                   gif-screencast-title-bar-pixel-height)))
+                   (or gif-screencast-title-bar-pixel-height 0)
+                   (cdr (cdr (assoc 'tool-bar-size (frame-geometry)))))))
     (format "%dx%d+%d+%d" width height x y)))
 
 (defun gif-screencast--crop ()
