@@ -88,3 +88,7 @@ macOS requires some additional settings:
 #+END_SRC
 
 [[https://imagemagick.org/script/mogrify.php][mogrify]] is part of the ImageMagick suite.
+
+** Display pressed keys while recording
+
+The [[https://github.com/tarsius/keycast][KeyCast]] package is useful to dispay the pressed keys in the modeline while recording.
