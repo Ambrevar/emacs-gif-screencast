@@ -5,7 +5,7 @@
 ;; Author: Pierre Neidhardt <ambrevar@gmail.com>
 ;; URL: https://github.com/ambrevar/emacs-gif-screencast
 ;; Version: 1.0
-;; Package-Requires: ((emacs "24.4"))
+;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: multimedia, screencast
 
 ;; This program is free software; you can redistribute it and/or modify
