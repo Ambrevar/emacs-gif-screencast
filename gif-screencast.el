@@ -3,7 +3,7 @@
 ;; Copyright (C) 2018 Pierre Neidhardt <ambrevar@gmail.com>
 
 ;; Author: Pierre Neidhardt <ambrevar@gmail.com>
-;; URL: https://github.com/ambrevar/emacs-gif-screencast
+;; URL: https://gitlab.com/ambrevar/emacs-gif-screencast
 ;; Version: 1.0
 ;; Package-Requires: ((emacs "25.1"))
 ;; Keywords: multimedia, screencast
